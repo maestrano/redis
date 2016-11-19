@@ -1,0 +1,61 @@
+---
+sudo: required
+dist: trusty
+
+services:
+  - docker
+
+before_install:
+  - sudo apt-get install -y openssl
+
+script:
+  # Build docker image
+  - cd 3.2/
+  - docker build -t maestrano/redis:travis . > /dev/null 2>&1
+
+  # Configuration
+  - HOST_PUB_IP=$(ifconfig | grep "eth0 " -A 1 | grep "inet " | cut -d':' -f2 | cut -d' ' -f1)
+  - PORT_NODE_0=33000
+  - PORT_NODE_1=33001
+  - PORT_NODE_2=33002
+
+  #============================================================================
+  # Test standalone Redis
+  #============================================================================
+  # Start standalone instance
+  - docker run -d -p $PORT_NODE_0:6379 -e REDIS_PASS=root --name r0 maestrano/redis:travis
+
+  # Wait for standalone instance to be up
+  - for i in {30..0}; do redis-cli -h $HOST_PUB_IP -p $PORT_NODE_0 -a root get somekey &> /dev/null && break; sleep 1; done
+  - if [ "$i" = 0 ]; then echo 'Redis startup process failed.'; exit 1; fi
+
+  # Create data
+  - redis-cli -h $HOST_PUB_IP -p $PORT_NODE_0 -a root set somekey somevalue
+  - "key_val=$(redis-cli -h $HOST_PUB_IP -p $PORT_NODE_0 -a root get somekey)"
+  - "key_count=$(redis-cli -h $HOST_PUB_IP -p $PORT_NODE_0 -a root info | grep 'db0' | cut -d',' -f1 | cut -d'=' -f2)"
+  - '[ "$key_val" == "somevalue" ]'
+  - '[ "$key_count" == "1" ]'
+
+  # Terminate redis
+  - docker rm -f r0
+
+  #============================================================================
+  # Test Redis with replica
+  #============================================================================
+  - docker run -d -p $PORT_NODE_1:6379 -e REDIS_PASS=root -e REDIS_MASTER=$HOST_PUB_IP:$PORT_NODE_1 -e SELF_HOST=$HOST_PUB_IP -e SELF_PORT=$PORT_NODE_1 --name r1 maestrano/redis:travis
+
+  # Wait for standalone instance to be up
+  - for i in {30..0}; do redis-cli -h $HOST_PUB_IP -p $PORT_NODE_1 -a root get somekey &> /dev/null && break; sleep 1; done
+  - if [ "$i" = 0 ]; then echo 'Redis startup process failed.'; exit 1; fi
+
+  # Create data
+  - "for i in {1000..0}; do key=$(openssl rand -base64 16); redis-cli -h $HOST_PUB_IP -p $PORT_NODE_1 -a root set $key somevalue > /dev/null 2>&1; done"
+
+  # Create replica 2 and insert data on master in parallel
+  - docker run -d -p $PORT_NODE_2:6379 -e REDIS_PASS=root -e REDIS_MASTER=$HOST_PUB_IP:$PORT_NODE_1 -e SELF_HOST=$HOST_PUB_IP -e SELF_PORT=$PORT_NODE_2 --name r2 maestrano/redis:travis
+  - "for i in {1000..0}; do key=$(openssl rand -base64 16); redis-cli -h $HOST_PUB_IP -p $PORT_NODE_1 -a root set $key somevalue > /dev/null 2>&1 ; done"
+
+  # Ensure counts are equal
+  - "count_node_1=$(redis-cli -h $HOST_PUB_IP -p $PORT_NODE_1 -a root info | grep 'db0' | cut -d',' -f1 | cut -d'=' -f2)"
+  - "count_node_2=$(redis-cli -h $HOST_PUB_IP -p $PORT_NODE_2 -a root info | grep 'db0' | cut -d',' -f1 | cut -d'=' -f2)"
+  - '[ "$count_node_1" == "$count_node_2" ]'
