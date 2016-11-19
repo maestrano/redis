@@ -51,6 +51,43 @@ Specify authentication password for connecting to redis (set `requirepass` direc
 Warning: since Redis is pretty fast an outside user can try up to 150k passwords per second against a good box. This means that you should
 use a very strong password otherwise it will be very easy to break.
 
+### `REDIS_MASTER`
+
+Specify a redis master to replicate data from. Format must follow <host>:<port>. If a `REDIS_PASS` is specified then this pass will be used to set the master-slave replication.
+
+**Example**
+```sh
+# Container setup
+HOST_PUB_IP=`ifconfig | grep en0 -A 5 | grep "inet " | cut -d' ' -f2`
+PORT_NODE_1=33001
+PORT_NODE_2=33002
+
+docker run -d -p $PORT_NODE_1:6379 \
+  -e SELF_HOST=$HOST_PUB_IP \
+  -e SELF_PORT=$PORT_NODE_1 \
+  -e REDIS_MASTER=$HOST_PUB_IP:$PORT_NODE_1 \
+  -e REDIS_PASS=somepass \
+  --name r1 \
+  alachaum/redis
+
+docker run -d -p $PORT_NODE_2:6379 \
+  -e SELF_HOST=$HOST_PUB_IP \
+  -e SELF_PORT=$PORT_NODE_2 \
+  -e REDIS_MASTER=$HOST_PUB_IP:$PORT_NODE_1 \
+  -e REDIS_PASS=somepass \
+  --name r2 \
+  alachaum/redis
+
+# Set key
+while true; do
+  key=$(openssl rand -base64 16)
+  redis-cli -h $HOST_PUB_IP -p $PORT_NODE_1 -a somepass set $key somevalue
+done
+
+# Count keys
+redis-cli -h $HOST_PUB_IP -p $PORT_NODE_1 -a somepass info | grep 'db0' | cut -d',' -f1 | cut -d'=' -f2
+redis-cli -h $HOST_PUB_IP -p $PORT_NODE_2 -a somepass info | grep 'db0' | cut -d',' -f1 | cut -d'=' -f2
+```
 
 # License
 
