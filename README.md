@@ -1,6 +1,8 @@
 # Maestrano MySQL
 Docker image for Redis with support for authentication and replication
 
+[![Build Status](https://travis-ci.org/maestrano/redis.svg?branch=master)](https://travis-ci.org/maestrano/redis)
+
 # Supported tags and respective `Dockerfile` links
 
 -	[`3.2.1`, `3.2`, `3`, `latest` (*3.2/Dockerfile*)](https://github.com/maestrano/redis/blob/master/3.2/Dockerfile)
