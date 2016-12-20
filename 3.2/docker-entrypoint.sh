@@ -1,10 +1,22 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 # Set Redis pass if defined
 conf_file=/usr/local/etc/redis/redis.conf
 if [ "${REDIS_PASS}" != "**None**" ] && ! grep -q 'requirepass' $conf_file; then
   echo "requirepass $REDIS_PASS" >> $conf_file
+fi
+
+# Configure replication
+# If SELF_HOST and SELF_PORT are set then we also ensure to not configure
+# replication on itself
+if [ "$REDIS_MASTER" ] && [ "$SELF_HOST:$SELF_PORT" != "$REDIS_MASTER" ]; then
+  master=(${REDIS_MASTER//:/ })
+  echo "slaveof ${master[0]} ${master[1]}" >> $conf_file
+
+  if [ "${REDIS_PASS}" != "**None**" ] && ! grep -q 'masterauth' $conf_file; then
+    echo "masterauth $REDIS_PASS" >> $conf_file
+  fi
 fi
 
 # first arg is `-f` or `--some-option`
