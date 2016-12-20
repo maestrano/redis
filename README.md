@@ -1,5 +1,7 @@
-# Maestrano MySQL
+# Maestrano Redis
 Docker image for Redis with support for authentication and replication
+
+[![Build Status](https://travis-ci.org/maestrano/redis.svg?branch=master)](https://travis-ci.org/maestrano/redis)
 
 # Supported tags and respective `Dockerfile` links
 
@@ -71,7 +73,7 @@ docker run -d -p $PORT_NODE_1:6379 \
   -e REDIS_MASTER=$HOST_PUB_IP:$PORT_NODE_1 \
   -e REDIS_PASS=somepass \
   --name r1 \
-  alachaum/redis
+  maestrano/redis
 
 docker run -d -p $PORT_NODE_2:6379 \
   -e SELF_HOST=$HOST_PUB_IP \
@@ -79,7 +81,7 @@ docker run -d -p $PORT_NODE_2:6379 \
   -e REDIS_MASTER=$HOST_PUB_IP:$PORT_NODE_1 \
   -e REDIS_PASS=somepass \
   --name r2 \
-  alachaum/redis
+  maestrano/redis
 
 # Set key
 while true; do
