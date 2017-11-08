@@ -39,6 +39,33 @@ script:
   - '[ "$key_val" == "somevalue" ]'
   - '[ "$key_count" == "1" ]'
 
+  # Ensure data are saved upon restart
+  - docker restart r0
+  - for i in {30..0}; do redis-cli -h $HOST_PUB_IP -p $PORT_NODE_0 -a root get somekey &> /dev/null && break; sleep 1; done
+  - "key_val=$(redis-cli -h $HOST_PUB_IP -p $PORT_NODE_0 -a root get somekey)"
+  - "key_count=$(redis-cli -h $HOST_PUB_IP -p $PORT_NODE_0 -a root info | grep 'db0' | cut -d',' -f1 | cut -d'=' -f2)"
+  - '[ "$key_val" == "somevalue" ]'
+  - '[ "$key_count" == "1" ]'
+
+  # Perform successive backups
+  - for i in {30..0}; do docker exec -it r0 /usr/local/bin/backup.sh; sleep 1; done
+
+  # Check that only 20 backups are kept
+  - "bkup_count=$(docker exec -it r0 ls -l /snapshots | grep tar.gz | wc -l)"
+  - '[ "$bkup_count" == "20" ]'
+
+  # Perform recovery and restart redis
+  - docker exec -it r0 rm -rf /data/*
+  - docker exec -it r0 sh -c "tar -xvzf /snapshots/\$(ls -1r /snapshots/ | head -n 1) -C /"
+  - docker restart r0
+  - for i in {30..0}; do redis-cli -h $HOST_PUB_IP -p $PORT_NODE_0 -a root get somekey &> /dev/null && break; sleep 1; done
+
+  # Ensure data are recovered
+  - "key_val=$(redis-cli -h $HOST_PUB_IP -p $PORT_NODE_0 -a root get somekey)"
+  - "key_count=$(redis-cli -h $HOST_PUB_IP -p $PORT_NODE_0 -a root info | grep 'db0' | cut -d',' -f1 | cut -d'=' -f2)"
+  - '[ "$key_val" == "somevalue" ]'
+  - '[ "$key_count" == "1" ]'
+
   # Terminate redis
   - docker rm -f r0
 

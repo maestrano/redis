@@ -1,8 +1,16 @@
 #!/bin/bash
 set -e
 
-# Set Redis pass if defined
+# Set config variables
 conf_file=/usr/local/etc/redis/redis.conf
+
+# Configure AOF persistence by default
+# (persist across restarts)
+if grep -q appendonly $conf_file; then
+  echo "appendonly yes" >> $conf_file
+fi
+
+# Set Redis pass if defined
 if [ "${REDIS_PASS}" != "**None**" ] && ! grep -q 'requirepass' $conf_file; then
   echo "requirepass $REDIS_PASS" >> $conf_file
 fi
