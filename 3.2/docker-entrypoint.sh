@@ -6,7 +6,7 @@ conf_file=/usr/local/etc/redis/redis.conf
 
 # Configure AOF persistence by default
 # (persist across restarts)
-if grep -q appendonly $conf_file; then
+if grep -q -v appendonly $conf_file; then
   echo "appendonly yes" >> $conf_file
 fi
 
