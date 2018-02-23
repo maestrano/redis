@@ -18,7 +18,11 @@ redis-cli -a $REDIS_PASS save
 # Perform backup (save both .rdb dump and appendonly.aof)
 cd /tmp
 ts=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
-tar -zcf $ts.tar.gz /data
+
+# Note: tar exits with 1 if the file has changed while creating the archive.
+# This is only a warning and the archive still gets created.
+# Below, we accept return code 1 as a valid return code.
+tar -zcf $ts.tar.gz /data || [ $? -eq 1 ]
 mv /tmp/$ts.tar.gz $BKUP_DIR/
 
 # Keep limited number of backups
